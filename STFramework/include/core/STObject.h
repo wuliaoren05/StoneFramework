@@ -5,7 +5,6 @@
 #include "base/STGuard.h"
 #include "core/STIEventDispatcher.h"
 
-
 class STObject
 {
 public:
@@ -30,11 +29,6 @@ protected:
 private:
     static STIEventDispatcher* s_eventDispatcher;
 };
-
-
-
-
-
 
 #endif // ST_OBJECT_H
 
