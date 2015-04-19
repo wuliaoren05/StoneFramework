@@ -4,7 +4,6 @@
 #include "STNetMode.h"
 
 class STScopePtr;
-
 class STNetEpoll: public STNetMode
 {
 public:
