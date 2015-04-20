@@ -9,6 +9,40 @@
 #include "STNetEpoll.h"
 #include "STThread.h"
 #include "STPtr.h"
+#include "STMutex.h"
+
+#define		MAXERRORHAPPEN	3
+#define  	MAXSOCKETEVENT	512
+#define		MAXLISTENEVENT	512
+#define  	BUFFSIZE		512
+#define		log			//
+
+enum
+{
+	WARING=1,
+	OK=0,
+	ERROR=-1
+};
+
+
+void setNonBlocking(int sockFd)
+{
+	int opts;
+	opts=fcntl(sockFd,F_GETFL);
+	if(opts<0)
+	{
+		perror(Error,"fcntl(sock,GETFL)");
+		log(Error,"fcntl(sock,GETFL)");
+		return WARING;
+	}
+	opts = opts|O_NONBLOCK;
+	if(fcntl(sockFd,F_SETFL,opts)<0)
+	{
+		perror("fcntl(sock,SETFL,opts)");
+		log("fcntl(sock,SETFL,opts)");
+		return WARING;
+	}
+}
 
 class STNetEpoll::Impl {
 public:
@@ -17,304 +51,327 @@ public:
 	}
 	~Impl() {
 	}
-	virtual bool Init() {
-		m_efd = epoll_create1(0);
-		if(-1 != m_efd)
+	virtual int32 Init() {
+		m_epollEFd = epoll_create();
+		if(-1 != m_socketFd)
 		{
-			return false;
+			return ERROR;
 		}
-		m_listenfd = epoll_create1(0);
-		if (-1 != m_efd)
+		m_listenEFd = epoll_create();
+		if (-1 != m_listenFd)
 		{
-			return false;
+			return ERROR;
 		}
 		int32 iRet = pipe(m_cmdPipe);
 		if (iRet != 0)
 		{
-			return false;
+			return ERROR;
 		}
-
 		m_event.data.fd = m_cmdPipe[0];
 		m_event.events = EPOLLIN | EPOLLHUP;
 
 		int32 iRet = epoll_ctl(m_efd, EPOLL_CTL_ADD, m_cmdPipe[0], &m_event);
 		if (-1 != iRet)
 		{
-			return false;
+			return ERROR;
 		}
-
 		return true;
 	}
-	virtual bool Run() {
-		int iAccpEvNum = 0;
-		int it = 0;
-		int iReadNum = 0;
-		ST_WHILE(1)
+	int32 dealCommand(const epoll_event & cmdEvent)
+	{
+		if (cmdEvent.events & EPOLLIN)
 		{
-			int32 iRet = epoll_wait(m_efd, m_eventArr, MaxEventCount,
-					m_iTimeOut);
-			ST_FOR( it=0; i < iRet;
-					it++
-					)
+			int32 iNum = read(cmdEvent.data.fd, &cmd, sizeof(cmd));
+			if  (iNum > 0)
+			{
+				if  (NULL != strstr(cmd,"EXIT"))
+				{
+					log("get command thread:Run to exit");
+					iRet = OK;
+					return iRet;
+
+				}
+				else if (NULL != strstr(cmd,"CLOSEFD"))
+				{
+					std::set<epoll_event>::iterator itSet = m_DoneEvent.begin();
+					while (itSet != m_DoneEvent.end())
 					{
-						if  (m_eventArr[i].data.fd == m_cmdPipe[0])
+						close(itSet->data.fd);
+					}
+					m_DoneEvent.clear();
+					log("get command thread:Run closed all socked handle");
+				}
+				else
+				{
+					log("other error happen thread:Run ");
+					iRet = ERROR;
+					return iRet;
+
+				}
+			}
+		}
+		else if (cmdEvent.events&EPOLLERR || cmdEvent.events&EPOLLHUP)
+		{
+			close(cmdEvent.data.fd);
+			log(pipe read error happen thread:Run to exit");
+			iRet = ERROR;
+			return iRet;
+		}
+		else
+		{
+			close(cmdEvent.data.fd);
+			log("pipe other errro happen  thread:Run to exit");
+			iRet = ERROR;
+			return iRet;
+		}
+	}
+	virtual bool run() {
+		int32 iAccpEvNum = 0;
+		int32 it = 0;
+		int32 iReadNum = 0;
+		int32 iRet = ERROR;
+		int32 iErrorCount = 0;
+		while(1)
+		{
+			int32 iRet = epoll_wait(m_epollEFd, m_socketEvent, MAXLISTENEVENT,m_iTimeOut);
+			 if (iRet < 0 ) {
+				 log(WARING,"");
+				++iErrorCount;
+				if (iErrorCount >= MAXERRORHAPPEN) {
+					exit(EXIT_FAILURE);
+				}
+				m_epollEFd = epoll_create(MAXLISTENEVENT);
+				if (m_listenEFd < 0) {
+					log(ERROR,"");
+					return ERROR;
+				}
+				struct epoll_event m_connEv;
+				std::set<epoll_event>::iterator it =  m_DoneEvent.begin();
+				while (it != m_DoneEvent.end())
+				{
+					if (epoll_ctl(m_epollEFd, EPOLL_CTL_ADD, (*it).data.fd, &(*it)) == -1) {
+						log(ERROR,"epoll_ctl: listen_sock");
+						return EXIT_FAILURE;
+					 }
+					++it;
+				}
+				continue;
+			}
+			iErrorCount =0;
+			for( it=0; it < iRet;it++)
+				{
+						if  (m_socketEvent[it].data.fd == m_cmdPipe[0])
 						{
-							if (m_eventArr[i].events & EPOLLIN)
+							iRet = dealCommand(m_socketEvent);
+							if (iRet < OK)
 							{
-								ThreadCmd cmd = read(m_cmdPipe[0], &cmd, sizeof(cmd);
-								if  (sizeof (cmd)) > 0)
-								{
-									if  (EXIT == cmd)
-									{
-										//ask thread to exit
-										//	break;
-									}
-									else (CLOSEFD == cmd)
-									{
-										//	break;
-										std::set<>::iterator itSet = m_DoneEvent.begin();
-										while (itSet != m_DoneEvent.end())
-										{
-											close(itSet->data.fd);
-										}
-										m_DoneEvent.clear();
-									}
-//									continue;
-								}
-							}
-							else if ()
-							{
-
-							}
-							else
-							{
-
+								log(ERROR,__FILE__,__LINE__,"run,dealCommand,Return:",iRet);
+								return iRet;
 							}
 						}
-						else if (events[i].events&EPOLLERR || events[i].events&EPOLLHUP)//有异常发生
-						{
-							cout << "[conn] close listen because epollerr or epollhup" << errno << endl;
-
-							close(events[i].data.fd);
-							epoll_ctl(epfd,EPOLL_CTL_DEL,events[i].data.fd,&events[i]);
-							m_DoneEvent.erase(events[i].data.fd);
-						}
-						else (eventArr[i].events & EPOLLIN)
+						else if (m_socketEvent[it].events & EPOLLIN)
 						{
 							do
 							{
-								iReadNum = read(eventArr[i].data.fd,m_szbuffer,sizeof(m_szbuffer));
+								iReadNum = read(m_socketEvent[it].data.fd,m_szbuffer,BUFFSIZE -1);
 								if (iReadNum > 0)	//读到数据
 								{
 									m_szbuffer[iReadNum] = '\0';
-
-									//综合下面两种情况,在读到字节数大于0时必须继续读,不管读到字节数是否等于接收缓冲区大小,
-									//也不管错误代码是否为EAGAIN,否则要么导致关闭事件丢失,要么导致后续数据的丢失
-									if (n < MAXLINE)
-									{
-										//经过验证,如果对方发送完数据后就断开,即使判断是否错误代码为EAGAIN,也会导致close事件丢失,
-										//必须继续读,以保证断开事件的正常接收
-										cout << "[data] n > 0, read less recv buffer size, errno=" << errno << ",len=" << n << ", data=" << line << endl;
-									}
-									else
-									{
-										//经过验证,发送字节数大于等于接收缓冲区时,读到字节数为接收缓冲区大小,错误代码为EAGAIN,
-										//必须继续读,以保证正常接收后续数据
-										cout << "[data] n > 0, read equal recv buffer size, errno=" << errno << ",len=" << n << ", data=" << line << endl;
-									}
+									//
 								}
-								else if (iReadNum < 0) //读取失败
+								else if (iReadNum < 0) //Failed to read
 								{
-									if (errno == EAGAIN)	//没有数据了
+									if (errno == EAGAIN)	//No data.
 									{
-										cout << "[data] n < 0, no data, errno=" << errno << endl;
-
+										log(FALTER,__FILE__,__LINE__, "[data] n < 0, no data, errno= %d", errno);
 										break;
 									}
 									else if(errno == EINTR)	//可能被内部中断信号打断,经过验证对非阻塞socket并未收到此错误,应该可以省掉该步判断
 									{
-										cout << "[data] n < 0, interrupt, errno=" << errno << endl;
+										log(FALTER,__FILE__,__LINE__, "[data] n < 0, interrupt, errno=%d", errno);
+										continue;
 									}
-									else	//客户端主动关闭
+									else	//The client is closed
 									{
-										cout << "[data] n < 0, peer close, errno=" << errno << endl;
-
-										close(events[i].data.fd);
-										epoll_ctl(epfd,EPOLL_CTL_DEL,events[i].data.fd,&events[i]);
-										m_DoneEvent.erase(events[i].data.fd);
+										log(FALTER,__FILE__,__LINE__, "[data] n < 0, peer close, errno=%d",errno);
+										close(m_socketEvent[it].data.fd);
+										epoll_ctl(m_epollFd,EPOLL_CTL_DEL,m_socketEvent[it].data.fd,&m_socketEvent[it]);
+										m_DoneEvent.erase(m_socketEvent[it]);
 										break;
 									}
 								}
-								else if (iReadNum == 0) //客户端主动关闭
+								else if (iReadNum == 0) //The client is closed
 								{
-									cout << "[data] n = 0, peer close, errno=" << errno << endl;
-									//同一连接可能会出现两个客户端主动关闭的事件,一个errno是EAGAIN(11),一个errno是EBADF(9),
-									//对错误的文件描述符EBADF(9)进行关闭操作不会有什么影响,故可以忽略,以减少errno判断的开销
+									log(FALTER,__FILE__,__LINE__, "[data] n = 0, peer close, errno=%d",errno );
 									close(events[i].data.fd);
 									epoll_ctl(m_efd,EPOLL_CTL_DEL,events[i].data.fd,&events[i]);
-									m_DoneEvent.erase(events[i].data.fd);
+									m_DoneEvent.erase(events[i]);
 									break;
 								}
 							}while (1);
 						}
+						else if (events[i].events&EPOLLERR || events[i].events&EPOLLHUP)//exception happen
+						{
+							log ( loger,__FILE__,__LINE__,WARING,"[conn] close listen because epollerr or epollhup"  );
+							epoll_ctl(epfd,EPOLL_CTL_DEL,events[i].data.fd,&events[i]);
+							close(events[i].data.fd);
+							m_DoneEvent.erase(events[i]);
+						}
+						else
+						{
+							log(ERROR,__FILE__,__LINE__,"socket other errro happen  thread:Run to exit");
+							iRet = ERROR;
+							return iRet;
+						}
 					}
+				}
 
-					iAccpEvNum = m_listEvent.size();
-					if (iAccpEvNum > 0)
-					{	//lock();
+			}
+			int32 closeAll() {
+				int32 iRet = ERROR;
+				iAccpEvNum = m_DoneEvent.size();
+				if (iAccpEvNum > 0) {
+						m_mutex.lock();
 						for (it = 0; it < iAccpEvNum; it++) {
 							m_listEvent[it].events = EPOLLIN | EPOLLET;
-							epoll_ctl(epfd, EPOLL_CTL_ADD, connfd,
-									&m_listEvent[it]);
+							iRet = epoll_ctl(epfd, EPOLL_CTL_DEL, m_DoneEvent[it].data.fd,&m_DoneEvent[it]);
+							if (iRet < 0) {
+								log(WARING,__FILE__,__LINE__,"closeAll,epoll_ctl,iRet:%d",iRet);
+							}
+							m_DoneEvent.erase(m_DoneEvent[it]);
 						}
-						m_DoneEvent.merge(m_listEvent);
-						//unlock();
+						m_mutex.unlock();
 					}
-				}
+				return OK;
 			}
-			virtual bool Destroy() {
-				std::string m_strRCmd, m_strWCmd;
-				m_strListcmd = "close";
-				write(m_cmdPipe, szcmd, sizeof(szcmd));
-				std::string m_strRCmd, m_strWCmd;
-				close(m_efd);
+			virtual int32 Destroy() {
+				iRet = closeAll();
+				close(m_socketFd);
+				close(m_listenFd);
 				close(m_cmdPipe[0]);
 				close(m_cmdPipe[1]);
+				return iRet;
 			}
 		public:
-			bool reStartAndListen(int32& iefd, const STString& ip, int port) {
+			bool restartAndListen(int32& iefd, const STString& ip, int port) {
+				int iRet = ERROR;
 				struct sockaddr_in serveraddr;
-				m_listenfd = socket(AF_INET, SOCK_STREAM, 0);
-				if (m_listenfd < 0)
+				m_listenEv.data.fd = socket(AF_INET, SOCK_STREAM, 0);
+				if (m_listenEv.data.fd < 0)
 				{
-					return false;
+					log(ERROR,"");
+					return iRet;
 				}
-				setnonblocking(m_listenfd);
-				ev.data.fd = m_listenfd;
-				ev.events = EPOLLIN | EPOLLET;
-				epoll_ctl(iefd, EPOLL_CTL_ADD, m_listenfd, &ev);
-
+				setNonBlocking(m_listenEv.data.fd);
+				m_listenEv.events = EPOLLIN | EPOLLET;
+				epoll_ctl(m_listenEFd, EPOLL_CTL_ADD, m_listenEv.data.fd, &m_listenEv);
 				bzero(&serveraddr, sizeof(serveraddr));
 				serveraddr.sin_family = AF_INET;
 				inet_aton(m_listenIp.c_str(), &(serveraddr.sin_addr)); //htons(SERV_PORT);
 				serveraddr.sin_port = htons(SERV_PORT);
-				bind(m_listenfd, (sockaddr *) &serveraddr, sizeof(serveraddr));
-				listen(m_listenfd, LISTENQ);
+				bind(m_listenEv.data.fd, (sockaddr *) &serveraddr, sizeof(serveraddr));
+				listen(m_listenEv.data.fd, LISTENQ);
 				return true;
 			}
 
-			bool startListen(const STString& ip, int port) {
-				//TBD
-				reStartAndListen(m_efd, STString, port);
-				int32 it = 0;
+			bool startListen(const STString& strIP, int32 iPort) {
+				int32 it = ERROR;
+				int32 iRet = ERROR;
+				struct sockaddr  clientaddr;
+				int32 iAddSize = sizeof(struct sockaddr);
+				startAndListen(m_efd, strIP, iPort);
+				int32 iErrorCount = 0;
 				while (1) {
-					epoll_wait();
-					int32 iRet = epoll_wait(m_efd, m_eventArr, MaxEventCount,
-							-1);
+					//At the same time an event occurs at most,Unless more than one handle add
+					iRet = epoll_wait(m_listenEFd, m_listenEvent, MAXLISTENEVENT,-1);
+					 if (iRet < 0 ) {
+						++iErrorCount;
+						log(WARING,"");
+						m_listenEFd = epoll_create(MAXLISTENEVENT);
+						if (m_listenEFd < 0)
+						{
+							log(ERROR,"");
+							return ERROR;
+						}
+						restartAndListen(m_listenEFd, strIP, iPort);
+						if (iErrorCount >= MAXERRORHAPPEN) {
+							exit(EXIT_FAILURE);
+						}
+					 }
+					 iErrorCount =0;
 					for (it=0;it<iRet;<i++)
 					{
-						if (m_eventArr[it].data.fd < 0)
+						if (m_listenEvent[it].data.fd < 0)
 						{
 							continue;
 						}
-						if (m_eventArr[i].events&EPOLLIN)	//有连接到来
+						if (m_listenEvent[i].events&EPOLLIN)	//have connection request
 						{
 							do
 							{
-								clilen = sizeof(struct sockaddr);
-								connfd = accept(m_eventArr,(sockaddr *)&clientaddr, &clilen);
-								if (connfd > 0)
+								m_connEv.data.fd = accept(m_listenEvent[it].data.fd,(sockaddr *)&clientaddr, &iAddSize);
+								if (m_connEv.data.fd > 0)
 								{
-									cout << "[conn] peer=" << inet_ntoa(clientaddr.sin_addr) << ":" << ntohs(clientaddr.sin_port) << endl;
-									log(LOG_ERROR,
-											"STNetEpoll::Impl close listen because accept fail and errno not equal eagain or eintr.");
-
-									//把socket设置为非阻塞方式
-									setnonblocking(connfd);
-									//设置用于读操作的文件描述符
-									ev.data.fd=connfd;
-									//设置用于注测的读操作事件
-									ev.events=EPOLLIN|EPOLLET;
-									//注册ev
-									m_listEvent.push_bask(ev);
+									log(FALTER,__FILE__,__LINE__, "[conn] peer=%s:%d",inet_ntoa(clientaddr.sin_addr),ntohs(clientaddr.sin_port));
+									setNonBlocking(m_connEv.data.fd);
+									m_connEv.events=EPOLLIN|EPOLLET;
+									m_listEvent.push_bask(m_connEv);
 								}
 								else
 								{
-
-									if (errno == EAGAIN)	//没有连接需要接收了
+									if (errno == EAGAIN)	//there is no connection request
 									{
-										break;
+										continue;
 									}
 									else if (errno == EINTR)//可能被中断信号打断,,经过验证对非阻塞socket并未收到此错误,应该可以省掉该步判断
 									{
+										continue;
 									}
-									else	//其它情况可以认为该描述字出现错误,应该关闭后重新监听
+									else	//In other cases the handle error, should be closed and listen again
 									{
-
 										log(LOG_ERROR,
 												"STNetEpoll::Impl close listen because accept fail and errno not equal eagain or eintr.");
 										//此时说明该描述字已经出错了,需要重新创建和监听
-										close(events[i].data.fd);
-
-										epoll_ctl(epfd,EPOLL_CTL_DEL,events[i].data.fd,&events[i]);
-
-										reStartAndListen(m_efd, STString, port);
-										//重新监听
+										close(m_listenEvent[it].data.fd);
+										iRet = epoll_ctl(m_listenEFd,EPOLL_CTL_DEL,m_listenEvent[it].data.fd,&m_listenEvent[it]);
+										if (iRet != OK ) {
+											log(ERROR,"");
+										}
+										iRet = restartAndListen(m_listenEFd, STString, port);
+										if (iRet != OK ) {
+											log(ERROR,"");
+											exit(ERROR);
+										}
 										break;
 									}
 								}
 							}while (1);
 						}
-
-					}
-					if (iRet < 0) {
-						if (errno == EINTR) {
-							continue;
-						}
-
-						if (errno == EBADF) {
-							log(LOG_ERROR,
-									"STNetEpoll::Impl startListen:epfd is not a valid file descriptor.");
-							reStartAndListen(m_efd, STString, port);
-						}
-						if (errno == EFAULT) {
-							log("...");
-							reStartAndListen(m_efd, STString, port);
-						}
-						if (errno == EINVAL) {
-							log(LOG_ERROR,
-									"STNetEpoll::Impl startListen:The memory area pointed to by events is not accessible with write permissions.");
-							break;
-						}
-
 					}
 				}
-				return false;
+				return ERROR;
 			}
-
 		public:
-			int main() {
 
-			}
 
 		private:
-			int32 m_efd;
-			int32 m_listenfd;
-			struct epoll_event m_event;
-			struct epoll_event m_ev
+			int32 m_epollEFd;
+			int32 m_listenEFd;
+			struct epoll_event m_listenEv;
+			struct epoll_event m_connEv;
 			int32 m_cmdPipe[2];
-			socket_t m_ListenCtl;
-			socket_t m_EventCtl;
-			epoll_event m_eventArr[MaxEventCount];
-//	int16	m_nListenThreadNum;
-//	int16	m_nEventThreadNum;
+			int32 m_listenFd;
+			epoll_event m_socketEvent [MAXSOCKETEVENT];
+			epoll_event m_listenEvent [MAXLISTENEVENT];
+
 			STString m_listenIp;
 			int32 m_listenPort;
 			std::vector<epoll_event> m_listEvent;
-			std::ser<epoll_event> m_DoneEvent;
+			std::set<epoll_event> m_DoneEvent;
 			int m_iTimeOut;
-			char m_szbuffer[256];
+			char m_szbuffer[BUFFSIZE];
+			STMutex m_mutex;
 
-			STScopePtr<STThread> m_stThread;
+//			STScopePtr<STThread> m_stThread;
 		};
 
