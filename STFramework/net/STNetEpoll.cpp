@@ -21,7 +21,7 @@
 #define		MAXCMDSIZE		5120
 
 enum {
-	WARING = 1, OK = 0, ERROR = -1
+	EXIT = 2, WARING = 1, OK = 0, ERROR = -1
 };
 enum {
 	NULLSTS = -1
@@ -29,6 +29,8 @@ enum {
 enum {
 	LISTEN = 1, RUN = 2
 };
+
+class CEpollCfg;
 
 typedef std::atomic<std::int_least32_t> AI_int;
 typedef struct {
@@ -60,7 +62,8 @@ typedef struct NetThreadRes {
 	}
 } SNetThreadRes;
 
-typedef std::map<thread_t, SNetThreadRes> SRunEvent;
+typedef std::map<uint32, SNetThreadRes> SRunEvent;
+typedef std::map<uint32, STScopePtr<Impl> > SRunThread;
 
 int initCmd(std::map<STString, void*>& mapCmdMapAct) {
 	mapCmdMapAct["EXIT"] = NULL;
@@ -86,12 +89,23 @@ void setNonBlocking(int sockFd) {
 
 class STNetEpoll::Impl {
 public:
-	Impl(const STString& STStrConfigFile) {
+	Impl() {
 	}
 	~Impl() {
 	}
 
-	virtual int32 Init() {
+	virtual int32 Init(const STString& STStrConfigFile) {
+		int iRet = cEpollCfg.init(STStrConfigFile);
+		if (iRet < OK) {
+			//log("");
+			return iRet;
+		}
+		iRet = cEpollCfg.run();
+		if (iRet < OK) {
+			//log("");
+			return iRet;
+		}
+		//cEpollCfg.m_vectorIP
 		int iRet = initDealSock();
 		if (iRet < OK) {
 			//log("");
@@ -129,13 +143,14 @@ public:
 	}
 
 	virtual int32 Destroy() {
+		cEpollCfg();
 		return close();
 	}
 public:
 
 private:
 	virtual int32 initListen() {
-		std::map<thread_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
+		std::map<uint32, SNetThreadRes>::iterator it = m_listenEvent.begin();
 		while (it != SRunEvent.end()) {
 			iRet = initBase(it->second);
 			if (iRet < 0) {
@@ -148,7 +163,7 @@ private:
 
 	virtual int32 initDealSock() {
 		int32 iRet = OK;
-		std::map<thread_t, SNetThreadRes>::iterator it = m_runEvent.begin();
+		std::map<uint32, SNetThreadRes>::iterator it = m_runEvent.begin();
 		while (it != SRunEvent.end()) {
 			iRet = initBase(it->second);
 			if (iRet < 0) {
@@ -160,7 +175,7 @@ private:
 	}
 
 	int32 closeListen() {
-		std::map<thread_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
+		std::map<uint32, SNetThreadRes>::iterator it = m_listenEvent.begin();
 		while (it != m_listenEvent.end()) {
 			closeBase(it->second);
 			++it;
@@ -169,7 +184,7 @@ private:
 	}
 
 	int32 closeDealSock() {
-		std::map<thread_t, SNetThreadRes>::iterator it = m_runEvent.begin();
+		std::map<uint32, SNetThreadRes>::iterator it = m_runEvent.begin();
 		while (it != m_runEvent.end()) {
 			closeBase(it->second);
 			++it;
@@ -177,11 +192,17 @@ private:
 		return OK;
 	}
 	int32 runListen() {
+
+		CEpollListenThread cEpollListenThread;
 		int32 iRet = OK;
-		std::map<thread_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
-		while (it != SRunEvent.end()) {
-			iRet = runListenBase(it->second);
-			if (iRet < 0) {
+		std::map<uint32, SNetThreadRes>::iterator it = m_listenEvent.begin();
+		while (it != m_listenEvent.end()) {
+
+			m_vctRunThread.push_back(cEpollListenThread);
+			m_vctRunThread.back.init(it->second, this);
+			iRet = m_vctRunThread.back.exec();
+
+			if (iRet != 0) {
 				//log
 			}
 			++it;
@@ -190,11 +211,17 @@ private:
 		return OK;
 	}
 	int32 runDealSock() {
+
+		CEpollRunThread cEpollRunThread;
 		int32 iRet = OK;
-		std::map<thread_t, SNetThreadRes>::iterator it = m_runEvent.begin();
-		while (it != SRunEvent.end()) {
-			iRet = runDealSockBase(it->second);
-			if (iRet < 0) {
+		std::map<uint32, SNetThreadRes>::iterator it = m_runEvent.begin();
+		while (it != m_runEvent.end()) {
+
+			m_vctListenThread.push_back(cEpollRunThread);
+			m_vctListenThread.back.init(it->second, this);
+			iRet = m_vctListenThread.back.exec();
+
+			if (iRet != 0) {
 				//log
 			}
 			++it;
@@ -211,6 +238,33 @@ private:
 		int32 iErrorCount = 0;
 		STString strBuffer;
 		while (1) {
+			if (sNetThreadRes.sValiable.size() > 0) {
+
+				sNetThreadRes.m_mutex.lock();
+
+				std::map<SNet, SEvent>::iterator itbegin =
+						sNetThreadRes.sValiable.begin();
+				std::map<SNet, SEvent>::iterator itend =
+						sNetThreadRes.sValiable.end();
+				while (itbegin != itend) {
+					epoll_ctl(sNetThreadRes.m_eFd, EPOLL_CTL_ADD,
+							itbegin->second.data.fd, &(itbegin->second));
+					sNetThreadRes.sMapEvent[itbegin->first] = itbegin->second;
+					++itbegin;
+				}
+
+				sNetThreadRes.m_mutex.unlock();
+
+				std::map<uint32, AI_int>::iterator it = m_mapSize2thread.find(
+						sNetThreadRes.iThreadID);
+				if (it == m_mapSize.end()) {
+					//log
+					return ERROR;
+				}
+				it->second = sNetThreadRes.sMapEvent.size();
+				sNetThreadRes.sValiable.clear();
+
+			}
 			int32 iRet = epoll_wait(sNetThreadRes.m_eFd,
 					sNetThreadRes.m_happenEvent, MAXLISTENEVENT,
 					sNetThreadRes.m_iTimeOut);
@@ -419,23 +473,35 @@ private:
 	}
 	return ERROR;
 }
+
 int32 pushSock(int iSock, SNet& sNet) {
-	std::multimap<AI_int, thread_t>::iterator it = m_mapSize.begin();
+	std::multimap<AI_int, uint32>::iterator it = m_mapthread2Size.begin();
 	if (it == m_mapSize.end()) {
 		log("");
 		return ERROR;
 	}
-	++(it->first);
-	thread_t threadID = it->second;
-	std::map<thread_t, SNetThreadRes>::iterator itEven = m_runEvent.find(
-			threadID);
+
+	std::map < uint32, AI_int > m_mapSize2thread;
+	std::multimap < AI_int, uint32 > m_mapthread2Size;
+
+	std::map<uint32, SNetThreadRes>::iterator itEven = m_runEvent.find(
+			it->second);
 	if (itEven == m_runEvent.end()) {
 		log("");
 		return ERROR;
 	}
 	itEven->second.m_mutex.lock();
 	itEven->second.sValiable[sNet] = iSock;
-	itEven->second.unlock()
+	itEven->second.unlock();
+
+	std::map<uint32, AI_int>::iterator itSize2thread = m_mapSize2thread.find(
+			it->second);
+	if (itSize2thread == m_mapSize2thread.end()) {
+		log("");
+		return ERROR;
+	}
+	it->first = itSize2thread->second;
+
 	return OK;
 }
 
@@ -512,27 +578,36 @@ int32 closeBase(SNetThreadRes & sNetThreadRes) {
 	return OK;
 }
 
-int32 dealCommand(const SEvent & cmdEvent) {
+int32 dealCommand(const SEvent & cmdEvent, SNetThreadRes & sNetThreadRes) {
 	if (cmdEvent.events & EPOLLIN) {
 		int32 iNum = read(cmdEvent.data.fd, &cmd, sizeof(cmd));
 		if (iNum > 0) {
 			if (NULL != strstr(cmd, "EXIT")) {
 				//log("get command thread:Run to exit");
-				iRet = OK;
+				closeBase(sNetThreadRes);
+				close(sNetThreadRes.m_cmdPipe[0]);
+				close(sNetThreadRes.m_cmdPipe[1]);
+				iRet = EXIT;
 				return iRet;
+
 			} else if (NULL != strstr(cmd, "CLOSEFD")) {
-				std::set<SEvent>::iterator itSet = m_setDoneEvent.begin();
-				while (itSet != m_setDoneEvent.end()) {
-					close(itSet->data.fd);
-					itSet->data.fd = NULLSTS;
-				}
-				m_setDoneEvent.clear();
+				iRet = closeBase(sNetThreadRes);
 				//log("get command thread:Run closed all socked handle");
-			} else {
+			} else if (NULL != strstr(cmd, "INIT")) {
+				iRet = closeBase(sNetThreadRes);
+				if (iRet < OK) {
+					return iRet;
+				}
+				close(sNetThreadRes.m_cmdPipe[0]);
+				close(sNetThreadRes.m_cmdPipe[1]);
+				iRet = initBase(sNetThreadRes);
+				if (iRet < OK) {
+					return iRet;
+				}
+
 				//log("other error happen thread:Run ");
-				iRet = ERROR;
-				return iRet;
 			}
+			return iRet;
 		}
 	} else if (cmdEvent.events & EPOLLERR || cmdEvent.events & EPOLLHUP) {
 		close(cmdEvent.data.fd);
@@ -564,7 +639,153 @@ private:
 
 SRunEvent m_listenEvent;
 SRunEvent m_runEvent;
-std::multimap<AI_int, thread_t> m_mapSize;
-//		STScopePtr<STThread> m_stThread;
+
+std::map<thread_t, uint32> m_mapSize2thread;
+std::multimap<uint32, thread_t> m_mapthread2Size;
+
+std::vector<CEpollListenThread> m_vctListenThread;
+std::vector<CEpollRunThread> m_vctRunThread;
+
+CEpollCfg cEpollCfg;
 };
+
+class CEpollListenThread: public STThread {
+public:
+	CEpollListenThread(SNetThreadRes & sNetThreadRes) {
+		m_pNetThreadRes = &sNetThreadRes;
+	}
+public:
+	int32 init(SNetThreadRes & sNetThreadRes, STNetEpoll::Impl* impl) {
+		m_imp = impl;
+		m_pNetThreadRes = &sNetThreadRes;
+		return OK;
+	}
+	SNetThreadRes* m_pNetThreadRes;
+	STNetEpoll::Impl * m_imp;
+	void main() {
+		m_imp->runListen();
+
+	}
+private:
+
+}
+
+class CEpollRunThread: public STThread {
+public:
+
+public:
+	int32 init(SNetThreadRes & sNetThreadRes, STNetEpoll::Impl* impl) {
+		if (NULL == impl) {
+			//log
+			return ERROR;
+		}
+		m_imp = impl;
+		m_pNetThreadRes = &sNetThreadRes;
+
+		return OK;
+	}
+	SNetThreadRes* m_pNetThreadRes;
+	STNetEpoll::Impl * m_imp;
+	void main() {
+		m_imp->runDealSockBase(m_pNetThreadRes);
+	}
+private:
+
+}
+
+class CEpollCfg {
+public:
+	int32 init(STString& strFile) {
+		m_strFile = strFile;
+		std::map<SNetCommon, int>::iterator it = m_mapIPNum.begin();
+
+		if (it != m_mapIPNum.end()) {
+			m_iIpNum = read_profile_int(it->first.strCommon.c_str(),
+					it->first.strNetNum.c_str(), 0, m_strFile.c_str());
+			if (0 != m_iIpNum) {
+				//log
+				return ERROR;
+			}
+		}
+		m_iListenThread = read_profile_int(it->first.strCommon.c_str(),
+				strListenThread.c_str(), 0, m_strFile.c_str());
+		if (0 != m_iListenThread) {
+			//log
+			return ERROR;
+		}
+		m_iRunThread = read_profile_int(it->first.strCommon.c_str(),
+				strRunThread.c_str(), 0, m_strFile.c_str());
+		if (0 != m_iRunThread) {
+			//log
+			return ERROR;
+		}
+
+
+	}
+	int32 Run() {
+		SNetData sNetData;
+		m_vectorIP.clear();
+		STString STStrNum;
+		while (m_iIpNum >= 0) {
+			STStrNum = "IP_" + itoa(m_iIpNum);
+			if (!read_profile_string(STStrNum.c_str(),
+					SNetDataCfg.strIP.c_str(), sNetData.szIP,
+					sizeof(sNetData.szIP), "", m_strFile.c_str())) {
+				//printf("read ini file fail\n");
+				return -1;
+			}
+			if (!read_profile_int(, SNetDataCfg.strPort.c_str(), sNetData.iPort,
+					sizeof(sNetData.iPort), "", m_strFile.c_str())) {
+				//printf("read ini file fail\n");
+				return -1;
+			}
+			m_vectorIP.push_bask(sNetData);
+			++m_iIpNum;
+		}
+		return OK;
+	}
+	int32 Destroy() {
+	}
+	;
+public:
+	typedef struct {
+		char szIP[128];
+		int32 iPort;
+	} SNetData;
+	typedef struct NetCommonCfg {
+		NetCommon() {
+			strCommon = "Common";
+			strNetNum = "IPNum";
+		}
+		SNetCommon;
+		STString strCommon;
+		int32 iNetNum;
+	} SNetCommonCfg;
+
+	typedef struct NetDataCfg {
+		NetCommon() {
+			strIP = "IP";
+			strPort = "Port";
+		}
+		SNetCommon;
+		STString strIP;
+		STString strPort;
+	} SNetDataCfg;
+	typedef struct ThreadCfg {
+		NetCommon() {
+			strListenThread = "ListenThreadNum";
+			strRunThread = "RunThreadNum";
+		}
+		SNetCommon;
+		STString strListenThread;
+		STString strRunThread;
+	} SThreadCfg;
+
+	STString m_strFile;
+	int32 m_iIpNum;
+	int32 m_iListenThread;
+	int32 m_iRunThread;
+	std::map<NetCommonCfg, int> m_mapIPNum;
+	std::vector<SNetData> m_vectorIP;
+}
 
