@@ -11,9 +11,11 @@ enum {
 
 class STNetMode {
 public:
-	virtual bool Init() = 0;
-	virtual bool Run() = 0;
-	virtual bool Destroy() = 0;
+	virtual int32_t init(const STString& ) = 0;
+	virtual int32_t run() = 0;
+	virtual int32_t destroy() = 0;
+private:
+	virtual ~STNetMode(){}
 };
 
 #endif
