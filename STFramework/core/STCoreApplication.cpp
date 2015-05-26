@@ -29,9 +29,9 @@ STString STCoreApplication::applicationName() const
     return ret;
 }
 
-void STCoreApplication::exec()
+int STCoreApplication::exec()
 {
-    this->startEventLoop();
+    return (STExitReason_Err != this->startEventLoop()) ? 0 : 1;
 }
 
 void STCoreApplication::exit()

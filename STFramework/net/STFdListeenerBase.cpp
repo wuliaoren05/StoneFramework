@@ -73,7 +73,6 @@ public:
 
             this->join();//wait read data thread exit
         }
-
     }
 
     bool setnonblocking(int sockfd)

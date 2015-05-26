@@ -13,6 +13,7 @@ public:
 
     void setEventReceiver(STObject* receiver);//event will send as STNetEvent
     bool startListen(int port);//will run another thread to listen
+    void stop();
 
     bool sendToClient(const STNetIdentify& target, const STString& dataStr);
 

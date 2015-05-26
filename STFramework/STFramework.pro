@@ -1,15 +1,13 @@
-# -------------------------------------------------
-# Project created by QtCreator 2015-03-16T11:11:04
-# -------------------------------------------------
-QT -= core \
-    gui
-TARGET = test_Application
-CONFIG += console
-CONFIG -= app_bundle
-TEMPLATE = app
-INCLUDEPATH += ../STFramework
-INCLUDEPATH += ../STFramework/include
-SOURCES += ./main.cpp \
+QT       -= core gui
+
+TARGET = STFramework
+TEMPLATE = lib
+DEFINES += STONEFRAMEWORK_LIBRARY
+
+
+INCLUDEPATH += include
+
+SOURCES += \
     ../STFramework/core/STCoreApplication.cpp \
     ../STFramework/core/STObject.cpp \
     ../STFramework/event/STEvent.cpp \
@@ -27,7 +25,8 @@ SOURCES += ./main.cpp \
     ../STFramework/tools/STStringTool.cpp
 
 
-HEADERS += ../STFramework/include/core/STCoreApplication.h \
+HEADERS += \
+    ../STFramework/include/core/STCoreApplication.h \
     ../STFramework/include/core/STObject.h \
     ../STFramework/include/event/STEvent.h \
     ../STFramework/include/thread/STThread.h \
@@ -47,3 +46,11 @@ HEADERS += ../STFramework/include/core/STCoreApplication.h \
     ../STFramework/net/SocketFdReader.h \
     ../STFramework/include/net/STNetDefine.h \
     ../STFramework/include/tools/STStringTool.h
+
+
+
+unix {
+    target.path = /usr/lib
+    INSTALLS += target
+}
+

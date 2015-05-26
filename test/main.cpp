@@ -499,8 +499,8 @@ int main(int argc, char *argv[])
     //testDataItem();
     //testSTNetIdentify();
     //testSocketFdReader(argc, argv);
-    testNet(argc, argv);
-    //testStringTool();
+    //testNet(argc, argv);
+    testStringTool();
 
     return 0;
 }

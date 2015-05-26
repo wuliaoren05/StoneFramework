@@ -13,7 +13,7 @@ public:
 
     STString applicationName() const;
 
-    void exec();
+    int exec();
     void exit();
 
 private:

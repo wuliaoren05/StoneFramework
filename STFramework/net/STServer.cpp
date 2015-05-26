@@ -49,6 +49,12 @@ public:
         return m_listenConnectThread.isRunning();
     }
 
+    void stop()
+    {
+        m_listenConnectThread.forceThreadStop();
+        m_listenDataThread.stopListen();
+    }
+
     bool sendToClient(const STNetIdentify& target, const STString& dataStr)
     {
         int dataSize = dataStr.size();
@@ -253,6 +259,11 @@ void STServer::setEventReceiver(STObject* receiver)
 bool STServer::startListen(int port)
 {
     return m_impl->startListen(port);
+}
+
+void STServer::stop()
+{
+    m_impl->stop();
 }
 
 bool STServer::sendToClient(const STNetIdentify& target, const STString& dataStr)
