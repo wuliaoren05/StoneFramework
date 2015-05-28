@@ -485,6 +485,16 @@ void testStringTool()
 
 }
 
+#include "tools/STIOTools.h"
+void testIOTools()
+{
+    while (1) {
+        STString str = STConsoleTool::readOneLine();
+
+        STConsoleTool::write("your input:" + str);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     STUNUSED(argc);
@@ -500,7 +510,8 @@ int main(int argc, char *argv[])
     //testSTNetIdentify();
     //testSocketFdReader(argc, argv);
     //testNet(argc, argv);
-    testStringTool();
+    //testStringTool();
+    testIOTools();
 
     return 0;
 }

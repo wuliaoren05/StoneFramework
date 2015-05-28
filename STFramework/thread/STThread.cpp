@@ -19,7 +19,7 @@ public:
     {}
     ~PrivateData()
     {
-        pthread_attr_destroy(&threadAttr);
+        //pthread_attr_destroy(&threadAttr);
     }
 };
 
