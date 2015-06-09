@@ -45,6 +45,8 @@ enum THREADFLAG
 };
 
 typedef void* (*PFun_CB)(int32_t, void*);
+
+
 typedef struct epoll_event SEvent;
 typedef struct STEventBuff_t
 {
@@ -53,8 +55,7 @@ typedef struct STEventBuff_t
 		memset(szBuff, 0x00, EVENTBUFFSIZE);
 		pStart = szBuff;
 		pEnd = szBuff;
-	}
-	;
+	};
 	char szBuff[EVENTBUFFSIZE];
 	char* pStart;
 	char* pEnd;
@@ -77,8 +78,8 @@ typedef struct STNetEvent_t
 		rcb = NULL;
 		wcb = NULL;
 		ecb = NULL;
-	}
-	;
+	};
+	int32_t Fd;
 	MapEventBuff mapEventBuff;
 	MapEventFun mapEventFun;
 	STNetBuff sRBuf;
@@ -104,7 +105,8 @@ typedef struct SNetThreadRes_t
 	char m_szBuffer[CMDSIZE];
 	STSharePtr<STMutex> m_mutex;
 	STSharePtr<STMutex> m_mutexBef;
-	SMapAct sMapAct;
+//	SMapAct sMapAct;
+	STNetEvent sNetEvent;
 	SMapEvent sMapEvent;
 	SMapEvent sMapEventBef;
 	SMapS2Net sMapS2Net;
@@ -140,6 +142,7 @@ public:
 	}
 
 public:
+	int32_t set_cb(PFun_CB fRead_cb,PFun_CB fWrite_cb,PFun_CB fError_cb);
 	int32_t runDealSockBase(SNetThreadRes & sNetThreadRes);
 	int32_t runListenBase(SNetThreadRes & sNetThreadRes);
 public:
@@ -180,6 +183,7 @@ public:
 	virtual int32_t run();
 	int32_t runDealSockBase(SNetThreadRes & sNetThreadRes);
 	int32_t runListenBase(SNetThreadRes & sNetThreadRes);
+	int32_t set_cb(PFun_CB fRead_cb,PFun_CB fWrite_cb,PFun_CB fError_cb);
 	virtual int32_t destroy();
 private:
 	CSigOpt m_cSigOpt;

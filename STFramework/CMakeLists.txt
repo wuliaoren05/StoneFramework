@@ -20,4 +20,3 @@ aux_source_directory(. DIR_LIB_NET)
 add_library (_STNETEPOLL net/STNetEpoll.cpp )
 add_library (_STOPTCFG net/STOptCfg.cpp tools/inifile.c)
 add_library (_STSIG net/STCSigOpt.cpp )
-

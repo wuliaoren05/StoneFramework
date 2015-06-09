@@ -119,7 +119,18 @@ CNetEpollImp::CNetEpollImp()
 CNetEpollImp::~CNetEpollImp()
 {
 }
-
+int32_t CNetEpollImp::set_cb(PFun_CB fRead_cb,PFun_CB fWrite_cb,PFun_CB fError_cb)
+{
+	std::map<uint32_t, SNetThreadRes>::iterator itBegin = m_runEvent.begin() ;
+	std::map<uint32_t, SNetThreadRes>::iterator itEnd = m_runEvent.end() ;
+	while (itBegin != itEnd) {
+		itBegin->second.sNetEvent.rcb = fRead_cb;
+		itBegin->second.sNetEvent.wcb = fWrite_cb;
+		itBegin->second.sNetEvent.ecb = fError_cb;
+		++itBegin;
+	}
+return RETOK;
+}
 int32_t CNetEpollImp::init(const STString& STStrConfigFile)
 {
 	m_exitFlag = RUNFLAG;
@@ -358,6 +369,7 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
 	int32_t iErrorCount = 0;
 	STString strBuffer;
 	SNet sNet;
+	int sflag = 0;
 	std::set<SNet> setSNetDisab;
 	std::pair<std::map<SNet, SEvent>::iterator, bool> itRet;
 	std::map<SNet, SEvent>::iterator itBegin;
@@ -388,9 +400,7 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
 							std::pair<SNet, SEvent>(itBegin->first, itBegin->second));
 					int32_t iRet = 0;
 					if (itRet.second) {
-						int sflag = 0;
-//						sNetThreadRes.sMapEventBef.erase(itBegin);
-
+						sflag = 0;
 						setsockopt(itRet.first->second.data.fd, SOL_SOCKET, SO_KEEPALIVE,
 								&sflag, sizeof(sflag));
 						setsockopt(itRet.first->second.data.fd, IPPROTO_TCP, TCP_NODELAY,
@@ -461,7 +471,7 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLERR)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLHUP)) { //exception happen
 				//log (loger, __FILE__, __LINE__, RETWARING, "[conn] close listen because epollerr or epollhup");
-
+				//log sNetThreadRes.sNetEvent.ecb();
 				epoll_ctl(sNetThreadRes.m_eFd, EPOLL_CTL_DEL,
 						sNetThreadRes.m_happenEvent[it].data.fd,
 						&(sNetThreadRes.m_happenEvent[it]));
@@ -483,19 +493,21 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
 			if ((sNetThreadRes.m_happenEvent[it].events & EPOLLOUT)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLWRNORM)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLWRBAND)) {
-				//log runDealSockBase
+				//log sNetThreadRes.sNetEvent.rcb();
 				{
 					static int32_t iNum = 0;
 					char szBuffer[BUFFSIZE] = "this is demon service ";
 					sprintf(szBuffer, "this is demon beffer:%d \n", ++iNum);
 					socketSend(sNetThreadRes.m_happenEvent[it].data.fd, szBuffer,
 					BUFFSIZE);
+
 				}
 			}
 
 			if ((sNetThreadRes.m_happenEvent[it].events & EPOLLIN)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLRDBAND)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLRDNORM)) {
+				//log sNetThreadRes.sNetEvent.wcb();
 				{
 					char szBuffer[BUFFSIZE];
 					memset(szBuffer, 0x00, sizeof(szBuffer));
@@ -859,6 +871,10 @@ int32_t CNetEpoll::init(const STString& strFileName)
 int32_t CNetEpoll::run()
 {
 	return m_cNetEpollImp->run(*this);
+}
+int32_t CNetEpoll::set_cb(PFun_CB fRead_cb,PFun_CB fWrite_cb,PFun_CB fError_cb)
+{
+	return m_cNetEpollImp->set_cb( fRead_cb, fWrite_cb, fError_cb);
 }
 int32_t CNetEpoll::runDealSockBase(SNetThreadRes & sNetThreadRes)
 {

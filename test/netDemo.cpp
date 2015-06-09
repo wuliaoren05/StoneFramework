@@ -11,6 +11,10 @@ void Heartbeat() {
 	printf("send Heartbeat flag\n");
 	return;
 }
+static void* funDo(int32_t fd, void* pData){
+
+	return NULL;
+};
 
 int main(int argc, void* argv[]) {
 	int32_t iRet = 0;
@@ -21,7 +25,7 @@ int main(int argc, void* argv[]) {
 	if (iRet < 0) {
 		return -1;
 	}
-
+	netEpoll.set_cb(funDo,funDo,funDo);
 	iRet = netEpoll.run();
 	if (iRet < 0) {
 		printf("iRet = netEpoll.run(); error \n");
