@@ -1,6 +1,5 @@
 #include "core/STObject.h"
 
-
 STObject::STObject()
 {
 }

@@ -26,6 +26,11 @@ inline void STDAssert(bool a)
     }
 }
 
-
+enum {
+	RETEXIT = 2, RETWARING = 1, RETOK = 0, RETERROR = -1, RETSOCKETCLOSE = -2
+};
+enum {
+	DEBUG = 0, INFO, WARN, ERROR, FATAL, ALL,OFF
+};
 
 #endif // ST_COMMON_DEFINE_H

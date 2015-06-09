@@ -1,8 +1,8 @@
 #ifndef ST_PTR_H
 #define ST_PTR_H
 
-#include "base/STAtom.h"
-#include "base/STCommonDefine.h"
+#include "STAtom.h"
+#include "STCommonDefine.h"
 
 #ifndef NULL
     #define NULL 0
@@ -43,10 +43,10 @@ public:
         return (m_obj != NULL);
     }
 private:
-    STScopePtr();
-    STScopePtr(const STScopePtr& other);
-    STScopePtr& operator=(const STScopePtr& other);
-    bool operator==(const STScopePtr& other);
+    STScopePtr(){};
+    STScopePtr(const STScopePtr& other){};
+    STScopePtr& operator=(const STScopePtr& other){return this;};
+    bool operator==(const STScopePtr& other){return false;};
 
 private:
     T* m_obj;
