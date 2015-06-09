@@ -119,17 +119,18 @@ CNetEpollImp::CNetEpollImp()
 CNetEpollImp::~CNetEpollImp()
 {
 }
-int32_t CNetEpollImp::set_cb(PFun_CB fRead_cb,PFun_CB fWrite_cb,PFun_CB fError_cb)
+int32_t CNetEpollImp::set_cb(PFun_CB fRead_cb, PFun_CB fWrite_cb,
+		PFun_CB fError_cb)
 {
-	std::map<uint32_t, SNetThreadRes>::iterator itBegin = m_runEvent.begin() ;
-	std::map<uint32_t, SNetThreadRes>::iterator itEnd = m_runEvent.end() ;
+	std::map<uint32_t, SNetThreadRes>::iterator itBegin = m_runEvent.begin();
+	std::map<uint32_t, SNetThreadRes>::iterator itEnd = m_runEvent.end();
 	while (itBegin != itEnd) {
 		itBegin->second.sNetEvent.rcb = fRead_cb;
 		itBegin->second.sNetEvent.wcb = fWrite_cb;
 		itBegin->second.sNetEvent.ecb = fError_cb;
 		++itBegin;
 	}
-return RETOK;
+	return RETOK;
 }
 int32_t CNetEpollImp::init(const STString& STStrConfigFile)
 {
@@ -498,9 +499,24 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
 					static int32_t iNum = 0;
 					char szBuffer[BUFFSIZE] = "this is demon service ";
 					sprintf(szBuffer, "this is demon beffer:%d \n", ++iNum);
-					socketSend(sNetThreadRes.m_happenEvent[it].data.fd, szBuffer,
+					iRet = socketSend(sNetThreadRes.m_happenEvent[it].data.fd, szBuffer,
 					BUFFSIZE);
-
+				}
+				if (0 > iRet) {
+					epoll_ctl(sNetThreadRes.m_eFd, EPOLL_CTL_DEL,
+							sNetThreadRes.m_happenEvent[it].data.fd,
+							&sNetThreadRes.m_happenEvent[it]);
+					sNetThreadRes.m_mutex->lock();
+					std::map<int32_t, SNet>::iterator itS2N =
+							sNetThreadRes.sMapS2Net.find(
+									sNetThreadRes.m_happenEvent[it].data.fd);
+					if (itS2N != sNetThreadRes.sMapS2Net.end()) {
+						sNetThreadRes.sMapEvent.erase(itS2N->second);
+						sNetThreadRes.sMapS2Net.erase(itS2N);
+					}
+					close(sNetThreadRes.m_happenEvent[it].data.fd);
+					sNetThreadRes.m_mutex->unlock();
+					continue;
 				}
 			}
 
@@ -529,6 +545,7 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
 					}
 					close(sNetThreadRes.m_happenEvent[it].data.fd);
 					sNetThreadRes.m_mutex->unlock();
+					continue;
 				}
 			}
 		}
@@ -872,9 +889,10 @@ int32_t CNetEpoll::run()
 {
 	return m_cNetEpollImp->run(*this);
 }
-int32_t CNetEpoll::set_cb(PFun_CB fRead_cb,PFun_CB fWrite_cb,PFun_CB fError_cb)
+int32_t CNetEpoll::set_cb(PFun_CB fRead_cb, PFun_CB fWrite_cb,
+		PFun_CB fError_cb)
 {
-	return m_cNetEpollImp->set_cb( fRead_cb, fWrite_cb, fError_cb);
+	return m_cNetEpollImp->set_cb(fRead_cb, fWrite_cb, fError_cb);
 }
 int32_t CNetEpoll::runDealSockBase(SNetThreadRes & sNetThreadRes)
 {
