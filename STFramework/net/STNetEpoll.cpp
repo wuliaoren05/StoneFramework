@@ -20,17 +20,21 @@
 
 #include "net/STNetEpoll.h"
 
-enum {
+enum
+{
 	NULLSTS = -1
 };
-enum {
+enum
+{
 	LISTEN = 1, RUN = 2
 };
 
 //for command function
-class CNetCmdOpt {
+class CNetCmdOpt
+{
 public:
-	int initCmd(std::map<STString, void*>& mapCmdMapAct) {
+	int initCmd(std::map<STString, void*>& mapCmdMapAct)
+	{
 		mapCmdMapAct["EXIT"] = NULL;
 		mapCmdMapAct["CLOSE"] = NULL;
 		return RETOK;
@@ -38,27 +42,32 @@ public:
 private:
 };
 
-class CEpollListenThread: public STThread {
+class CEpollListenThread: public STThread
+{
 public:
 	CEpollListenThread() :
-			m_netThreadRes(NULL), m_netEpoll(NULL) {
+			m_netThreadRes(NULL), m_netEpoll(NULL)
+	{
 	}
-	CEpollListenThread& operator=(
-			const CEpollListenThread& cEpollListenThread) {
+	CEpollListenThread& operator=(const CEpollListenThread& cEpollListenThread)
+	{
 		m_netThreadRes = cEpollListenThread.m_netThreadRes;
 		m_netEpoll = cEpollListenThread.m_netEpoll;
 		return *this;
 	}
 	CEpollListenThread(const CEpollListenThread& cEpollListenThread) :
 			m_netThreadRes(cEpollListenThread.m_netThreadRes), m_netEpoll(
-					cEpollListenThread.m_netEpoll) {
+					cEpollListenThread.m_netEpoll)
+	{
 	}
-	int32_t init(SNetThreadRes* sNetThreadRes, CNetEpoll* impl) {
+	int32_t init(SNetThreadRes* sNetThreadRes, CNetEpoll* impl)
+	{
 		m_netEpoll = impl;
 		m_netThreadRes = sNetThreadRes;
 		return RETOK;
 	}
-	void main() {
+	void main()
+	{
 		m_netThreadRes->m_iThreadID = pthread_self();
 		pthread_detach(m_netThreadRes->m_iThreadID);
 		m_netEpoll->runListenBase(*m_netThreadRes);
@@ -67,27 +76,33 @@ public:
 	CNetEpoll* m_netEpoll;
 };
 
-class CEpollRunThread: public STThread {
+class CEpollRunThread: public STThread
+{
 public:
 	CEpollRunThread() :
-			m_netThreadRes(NULL), m_netEpoll(NULL) {
+			m_netThreadRes(NULL), m_netEpoll(NULL)
+	{
 	}
 	CEpollRunThread(const CEpollRunThread & cEpollRunThread) :
 			m_netThreadRes(cEpollRunThread.m_netThreadRes), m_netEpoll(
-					cEpollRunThread.m_netEpoll) {
+					cEpollRunThread.m_netEpoll)
+	{
 	}
-	CEpollRunThread& operator=(const CEpollRunThread& cEpollRunThread) {
+	CEpollRunThread& operator=(const CEpollRunThread& cEpollRunThread)
+	{
 		m_netThreadRes = cEpollRunThread.m_netThreadRes;
 		m_netEpoll = cEpollRunThread.m_netEpoll;
 		return *this;
 	}
-	int32_t init(SNetThreadRes & sNetThreadRes, CNetEpoll& impl) {
+	int32_t init(SNetThreadRes & sNetThreadRes, CNetEpoll& impl)
+	{
 		m_netEpoll = &impl;
 		m_netThreadRes = &sNetThreadRes;
 		return RETOK;
 	}
 
-	void main() {
+	void main()
+	{
 		m_netThreadRes->m_iThreadID = pthread_self();
 		pthread_detach(m_netThreadRes->m_iThreadID);
 		m_netEpoll->runDealSockBase(*m_netThreadRes);
@@ -97,13 +112,16 @@ private:
 	CNetEpoll* m_netEpoll;
 };
 
-CNetEpollImp::CNetEpollImp() {
+CNetEpollImp::CNetEpollImp()
+{
 	m_exitFlag = RUNFLAG;
 }
-CNetEpollImp::~CNetEpollImp() {
+CNetEpollImp::~CNetEpollImp()
+{
 }
 
-int32_t CNetEpollImp::init(const STString& STStrConfigFile) {
+int32_t CNetEpollImp::init(const STString& STStrConfigFile)
+{
 	m_exitFlag = RUNFLAG;
 	int32_t iRet = m_cEpollCfg.init(STStrConfigFile);
 	if (iRet < RETOK) {
@@ -139,8 +157,7 @@ int32_t CNetEpollImp::init(const STString& STStrConfigFile) {
 			sNetData = m_cEpollCfg.m_sNetDataCfg.m_vectorIP[j * i];
 			sNet.strIP = sNetData.szIP;
 			sNet.iPort = sNetData.iPort;
-			sNetThreadRes.sMapEvent.insert(
-					std::pair<SNet, SEvent>(sNet, sEvent));
+			sNetThreadRes.sMapEvent.insert(std::pair<SNet, SEvent>(sNet, sEvent));
 		}
 		m_listenEvent[j] = sNetThreadRes;
 		sNetThreadRes.sMapEvent.clear();
@@ -159,7 +176,8 @@ int32_t CNetEpollImp::init(const STString& STStrConfigFile) {
 	return RETOK;
 }
 
-int32_t CNetEpollImp::run(CNetEpoll& CNetEpoll) {
+int32_t CNetEpollImp::run(CNetEpoll& CNetEpoll)
+{
 	int32_t iRet = RETOK;
 	iRet = runDealSock(CNetEpoll);
 	if (iRet < RETOK) {
@@ -174,11 +192,11 @@ int32_t CNetEpollImp::run(CNetEpoll& CNetEpoll) {
 	return iRet;
 }
 
-int32_t CNetEpollImp::destroy() {
+int32_t CNetEpollImp::destroy()
+{
 	m_cEpollCfg.destroy();
 	exitThread();
-	std::vector<CEpollListenThread>::iterator itBegin =
-			m_vctListenThread.begin();
+	std::vector<CEpollListenThread>::iterator itBegin = m_vctListenThread.begin();
 	std::vector<CEpollListenThread>::iterator itEnd = m_vctListenThread.end();
 	while (itBegin != itEnd) {
 		itBegin->askToStop();
@@ -202,7 +220,8 @@ int32_t CNetEpollImp::destroy() {
 	return RETOK;
 }
 
-int32_t CNetEpollImp::closeAll() {
+int32_t CNetEpollImp::closeAll()
+{
 	int32_t iRet = RETOK;
 	iRet = closeListen();
 	if (iRet < RETOK) {
@@ -215,7 +234,8 @@ int32_t CNetEpollImp::closeAll() {
 	return RETOK;
 }
 
-int32_t CNetEpollImp::initListen() {
+int32_t CNetEpollImp::initListen()
+{
 	int32_t iRet = 0;
 	std::map<uint32_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
 	while (it != m_listenEvent.end()) {
@@ -229,7 +249,8 @@ int32_t CNetEpollImp::initListen() {
 	return iRet;
 }
 
-int32_t CNetEpollImp::initDealSock() {
+int32_t CNetEpollImp::initDealSock()
+{
 	int32_t iRet = RETOK;
 	std::map<uint32_t, SNetThreadRes>::iterator it = m_runEvent.begin();
 	while (it != m_runEvent.end()) {
@@ -243,7 +264,8 @@ int32_t CNetEpollImp::initDealSock() {
 	return iRet;
 }
 
-int32_t CNetEpollImp::closeListen() {
+int32_t CNetEpollImp::closeListen()
+{
 	std::map<uint32_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
 	while (it != m_listenEvent.end()) {
 		closeBase(it->second);
@@ -252,7 +274,8 @@ int32_t CNetEpollImp::closeListen() {
 	return RETOK;
 }
 
-int32_t CNetEpollImp::closeDealSock() {
+int32_t CNetEpollImp::closeDealSock()
+{
 	std::map<uint32_t, SNetThreadRes>::iterator it = m_runEvent.begin();
 	while (it != m_runEvent.end()) {
 		closeBase(it->second);
@@ -261,7 +284,8 @@ int32_t CNetEpollImp::closeDealSock() {
 	return RETOK;
 }
 
-int32_t CNetEpollImp::runListen(CNetEpoll& cNetEpoll) {
+int32_t CNetEpollImp::runListen(CNetEpoll& cNetEpoll)
+{
 	CEpollListenThread cEpollListenThread;
 	int32_t iRet = RETOK;
 	std::map<uint32_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
@@ -282,7 +306,8 @@ int32_t CNetEpollImp::runListen(CNetEpoll& cNetEpoll) {
 	return iRet;
 }
 
-int32_t CNetEpollImp::runDealSock(CNetEpoll& CNetEpoll) {
+int32_t CNetEpollImp::runDealSock(CNetEpoll& CNetEpoll)
+{
 	CEpollRunThread cEpollRunThread;
 	int32_t iRet = RETOK;
 	std::map<uint32_t, SNetThreadRes>::iterator itRunEvent = m_runEvent.begin();
@@ -306,7 +331,8 @@ int32_t CNetEpollImp::runDealSock(CNetEpoll& CNetEpoll) {
 	while (itRun != m_vctRunThread.end()) {
 		if (itRun->isRunning()) {
 			++itRun;
-		} else {
+		}
+		else {
 			sleep(1);
 		}
 	}
@@ -325,7 +351,8 @@ int32_t CNetEpollImp::runDealSock(CNetEpoll& CNetEpoll) {
 	return iRet;
 }
 //do some event
-int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
+int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes)
+{
 	int32_t it = 0;
 	int32_t iRet = RETERROR;
 	int32_t iErrorCount = 0;
@@ -358,25 +385,22 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 				while (itBegin != itend) {
 					sNetThreadRes.sMapEvent.erase(itBegin->first);
 					itRet = sNetThreadRes.sMapEvent.insert(
-							std::pair<SNet, SEvent>(itBegin->first,
-									itBegin->second));
+							std::pair<SNet, SEvent>(itBegin->first, itBegin->second));
 					int32_t iRet = 0;
 					if (itRet.second) {
 						int sflag = 0;
 //						sNetThreadRes.sMapEventBef.erase(itBegin);
 
-						setsockopt(itRet.first->second.data.fd, SOL_SOCKET,
-								SO_KEEPALIVE, &sflag, sizeof(sflag));
-						setsockopt(itRet.first->second.data.fd,
-						IPPROTO_TCP,
-						TCP_NODELAY, &sflag, sizeof(sflag));
-						itRet.first->second.events = EPOLLOUT | EPOLLIN
-								| EPOLLET;
-						iRet = epoll_ctl(sNetThreadRes.m_eFd,
-						EPOLL_CTL_ADD, itRet.first->second.data.fd,
-								&(itRet.first->second));
+						setsockopt(itRet.first->second.data.fd, SOL_SOCKET, SO_KEEPALIVE,
+								&sflag, sizeof(sflag));
+						setsockopt(itRet.first->second.data.fd, IPPROTO_TCP, TCP_NODELAY,
+								&sflag, sizeof(sflag));
+						itRet.first->second.events = EPOLLOUT | EPOLLIN | EPOLLET;
+						iRet = epoll_ctl(sNetThreadRes.m_eFd, EPOLL_CTL_ADD,
+								itRet.first->second.data.fd, &(itRet.first->second));
 
-					} else {
+					}
+					else {
 						//log runDealSockBase some error happen;
 					}
 					//log   iRet;
@@ -388,11 +412,10 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 				//log
 
 				//set event num to thread struct
-				std::map<pthread_t, SNumFlag>::iterator it =
-						m_mapThread2Num.find(sNetThreadRes.m_iThreadID);
+				std::map<pthread_t, SNumFlag>::iterator it = m_mapThread2Num.find(
+						sNetThreadRes.m_iThreadID);
 				{
-					std::map<pthread_t, SNumFlag>::iterator it =
-							m_mapThread2Num.begin();
+					std::map<pthread_t, SNumFlag>::iterator it = m_mapThread2Num.begin();
 					while (it != m_mapThread2Num.end()) {
 						//log
 						++it;
@@ -415,7 +438,7 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 			//log
 			++iErrorCount;
 			if (iErrorCount >= MAXERRORHAPPEN) {
-				exit(EXIT_FAILURE);
+				exit (EXIT_FAILURE);
 			}
 			iRet = closeBase(sNetThreadRes);
 			if (iRet < RETOK) {
@@ -444,9 +467,8 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 						&(sNetThreadRes.m_happenEvent[it]));
 
 				sNetThreadRes.m_mutex->lock();
-				std::map<int32_t, SNet>::iterator itS2N =
-						sNetThreadRes.sMapS2Net.find(
-								sNetThreadRes.m_happenEvent[it].data.fd);
+				std::map<int32_t, SNet>::iterator itS2N = sNetThreadRes.sMapS2Net.find(
+						sNetThreadRes.m_happenEvent[it].data.fd);
 				if (itS2N != sNetThreadRes.sMapS2Net.end()) {
 					sNetThreadRes.sMapEvent.erase(itS2N->second);
 					sNetThreadRes.sMapS2Net.erase(itS2N);
@@ -466,9 +488,8 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 					static int32_t iNum = 0;
 					char szBuffer[BUFFSIZE] = "this is demon service ";
 					sprintf(szBuffer, "this is demon beffer:%d \n", ++iNum);
-					socketSend(sNetThreadRes.m_happenEvent[it].data.fd,
-							szBuffer,
-							BUFFSIZE);
+					socketSend(sNetThreadRes.m_happenEvent[it].data.fd, szBuffer,
+					BUFFSIZE);
 				}
 			}
 
@@ -478,9 +499,8 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 				{
 					char szBuffer[BUFFSIZE];
 					memset(szBuffer, 0x00, sizeof(szBuffer));
-					iRet = socketRecv(sNetThreadRes.m_happenEvent[it].data.fd,
-							szBuffer,
-							BUFFSIZE);
+					iRet = socketRecv(sNetThreadRes.m_happenEvent[it].data.fd, szBuffer,
+					BUFFSIZE);
 					printf("this is recv buffer%d:%s\n", iRet, szBuffer);
 				}
 				if (0 > iRet) {
@@ -503,45 +523,50 @@ int32_t CNetEpollImp::runDealSockBase(SNetThreadRes& sNetThreadRes) {
 	}
 	return iRet;
 }
-int32_t CNetEpollImp::socketSend(int32_t iSFd, char* szBuf, int32_t nLen) {
+int32_t CNetEpollImp::socketSend(int32_t iSFd, char* szBuf, int32_t nLen)
+{
 	int nLeft = nLen;
 	int nWrite = 0;
 	while (nLeft > 0) {
 		nWrite = write(iSFd, szBuf, nLeft);
 		if (nWrite < 0) {
-			if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
-				continue;
+			if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) continue;
 			//log
 			return nWrite;                  // error, return <= 0
-		} else if (nWrite == 0) {
+		}
+		else if (nWrite == 0) {
 			return -1;
-		} else {
+		}
+		else {
 			nLeft -= nWrite;
 			szBuf += nWrite;
 		}
 	}
 	return (nLen - nLeft);          // return >= 0
 }
-int32_t CNetEpollImp::socketRecv(int sockfd, char* szBuff, int32_t nLen) {
+int32_t CNetEpollImp::socketRecv(int sockfd, char* szBuff, int32_t nLen)
+{
 	int nLeft = nLen;
 	int nRead = 0;
 	while (nLeft > 0) {
 		nRead = read(sockfd, szBuff, nLeft);
 		if (nRead < 0) {
-			if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)
-				continue;
+			if (errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN) continue;
 			//log
 			return nRead;                  // error, return < 0
-		} else if (nRead == 0) {
+		}
+		else if (nRead == 0) {
 			return -1;;                                  // EOF
-		} else {
+		}
+		else {
 			nLeft -= nRead;
 			szBuff += nRead;
 		}
 	}
 	return (nLen - nLeft);               // return >= 0
 }
-void CNetEpollImp::setNonBlocking(int32_t ISFd) {
+void CNetEpollImp::setNonBlocking(int32_t ISFd)
+{
 	int opts;
 	opts = fcntl(ISFd, F_GETFL);
 	if (opts < 0) {
@@ -556,7 +581,8 @@ void CNetEpollImp::setNonBlocking(int32_t ISFd) {
 		return;
 	}
 }
-int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes) {
+int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes)
+{
 	int32_t it = RETERROR;
 	int32_t iRet = RETERROR;
 	struct sockaddr_in clientaddr;
@@ -580,7 +606,7 @@ int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes) {
 			++iErrorCount;
 			//log
 			if (iErrorCount >= MAXERRORHAPPEN) {
-				exit(EXIT_FAILURE);
+				exit (EXIT_FAILURE);
 			}
 			iRet = initListen();
 			//log();
@@ -600,7 +626,7 @@ int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes) {
 			//log
 
 			if (sNetThreadRes.m_happenEvent[it].events & EPOLLIN) //have connection request
-			{
+					{
 				//log
 				do {
 					int iSFd = 0;
@@ -616,19 +642,20 @@ int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes) {
 						sEvent.data.fd = iSFd;
 						pushSock(sEvent, sNet);
 						//deal socket will do the socket
-					} else {
+					}
+					else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK) //there is no connection request
-						{
+								{
 							//log
 							break;
 							//continue;
-						} else //In other cases the handle RETERROR, should be closed and listen again
+						}
+						else //In other cases the handle RETERROR, should be closed and listen again
 						{
 							//log_ERROR,
 							close(sNetThreadRes.m_happenEvent[it].data.fd);
 							sNetThreadRes.m_happenEvent[it].data.fd = NULLSTS;
-							iRet = epoll_ctl(sNetThreadRes.m_eFd,
-							EPOLL_CTL_DEL,
+							iRet = epoll_ctl(sNetThreadRes.m_eFd, EPOLL_CTL_DEL,
 									sNetThreadRes.m_happenEvent[it].data.fd,
 									&sNetThreadRes.m_happenEvent[it]);
 							if (iRet != RETOK) {
@@ -648,7 +675,8 @@ int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes) {
 			if (!((sNetThreadRes.m_happenEvent[it].events & EPOLLERR)
 					|| (sNetThreadRes.m_happenEvent[it].events & EPOLLHUP))) {
 				//log
-			} else {
+			}
+			else {
 				//log
 			}
 		}
@@ -656,7 +684,8 @@ int32_t CNetEpollImp::runListenBase(SNetThreadRes & sNetThreadRes) {
 	return RETERROR;
 }
 
-int32_t CNetEpollImp::pushSock(SEvent& sEvent, SNet& sNet) {
+int32_t CNetEpollImp::pushSock(SEvent& sEvent, SNet& sNet)
+{
 	uint32_t iMin = 999999;
 	int32_t iRet = 0;
 //thread to size
@@ -690,7 +719,8 @@ int32_t CNetEpollImp::pushSock(SEvent& sEvent, SNet& sNet) {
 	return iRet;
 }
 
-int32_t CNetEpollImp::initBase(SNetThreadRes & sNetThreadRes) {
+int32_t CNetEpollImp::initBase(SNetThreadRes & sNetThreadRes)
+{
 	sNetThreadRes.m_eFd = epoll_create(MAXHAPPENEVENT);
 	if (0 > sNetThreadRes.m_eFd) {
 		//log  initBase epoll_create
@@ -721,15 +751,15 @@ int32_t CNetEpollImp::initBase(SNetThreadRes & sNetThreadRes) {
 		serverAddr.sin_family = AF_INET;
 		serverAddr.sin_addr.s_addr = inet_addr(itBegin->first.strIP.c_str());
 		serverAddr.sin_port = htons(itBegin->first.iPort);
-		bind(itBegin->second.data.fd, (sockaddr *) &serverAddr,
-				sizeof(serverAddr));
+		bind(itBegin->second.data.fd, (sockaddr *) &serverAddr, sizeof(serverAddr));
 		listen(itBegin->second.data.fd, LISTENQ);
 		++itBegin;
 	}
 	return RETOK;
 }
 
-int32_t CNetEpollImp::closeBase(SNetThreadRes& sNetThreadRes) {
+int32_t CNetEpollImp::closeBase(SNetThreadRes& sNetThreadRes)
+{
 	std::map<SNet, SEvent>::iterator itBegin = sNetThreadRes.sMapEvent.begin();
 	std::map<SNet, SEvent>::iterator itEnd = sNetThreadRes.sMapEvent.begin();
 	while (itBegin != itEnd) {
@@ -748,7 +778,8 @@ int32_t CNetEpollImp::closeBase(SNetThreadRes& sNetThreadRes) {
 }
 
 int32_t CNetEpollImp::dealCommand(SEvent & cmdEvent,
-		SNetThreadRes & sNetThreadRes) {
+		SNetThreadRes & sNetThreadRes)
+{
 	int32_t iRet = 0;
 	char szCmd[1024] = "";
 	if (cmdEvent.events & EPOLLIN) {
@@ -762,10 +793,12 @@ int32_t CNetEpollImp::dealCommand(SEvent & cmdEvent,
 				iRet = EXIT;
 				return iRet;
 
-			} else if (NULL != strstr(szCmd, "CLOSEFD")) {
+			}
+			else if (NULL != strstr(szCmd, "CLOSEFD")) {
 				iRet = closeBase(sNetThreadRes);
 				//log
-			} else if (NULL != strstr(szCmd, "INIT")) {
+			}
+			else if (NULL != strstr(szCmd, "INIT")) {
 				iRet = closeBase(sNetThreadRes);
 				if (iRet < RETOK) {
 					return iRet;
@@ -780,15 +813,18 @@ int32_t CNetEpollImp::dealCommand(SEvent & cmdEvent,
 			}
 			return iRet;
 		}
-	} else if ((cmdEvent.events & EPOLLOUT)) {
+	}
+	else if ((cmdEvent.events & EPOLLOUT)) {
 		//log
-	} else if ((cmdEvent.events & EPOLLERR) || (cmdEvent.events & EPOLLHUP)) {
+	}
+	else if ((cmdEvent.events & EPOLLERR) || (cmdEvent.events & EPOLLHUP)) {
 		close(cmdEvent.data.fd);
 		cmdEvent.data.fd = NULLSTS;
 		//log
 		iRet = RETERROR;
 		return iRet;
-	} else {
+	}
+	else {
 		close(cmdEvent.data.fd);
 		cmdEvent.data.fd = NULLSTS;
 		//log
@@ -797,7 +833,8 @@ int32_t CNetEpollImp::dealCommand(SEvent & cmdEvent,
 	}
 	return RETOK;
 }
-int32_t CNetEpollImp::getAddressBySocket(const int32_t m_socket, SNet& sNet) {
+int32_t CNetEpollImp::getAddressBySocket(const int32_t m_socket, SNet& sNet)
+{
 	struct sockaddr_in address;
 	memset(&address, 0, sizeof(address));
 	unsigned int uiAddrLen = sizeof(address);
@@ -811,24 +848,31 @@ int32_t CNetEpollImp::getAddressBySocket(const int32_t m_socket, SNet& sNet) {
 }
 
 CNetEpoll::CNetEpoll() :
-		m_cNetEpollImp(new CNetEpollImp) {
+		m_cNetEpollImp(new CNetEpollImp)
+{
 }
-int32_t CNetEpoll::init(const STString& strFileName) {
+int32_t CNetEpoll::init(const STString& strFileName)
+{
 	m_cSigOpt.ignalSig();
 	return m_cNetEpollImp->init(strFileName);
 }
-int32_t CNetEpoll::run() {
+int32_t CNetEpoll::run()
+{
 	return m_cNetEpollImp->run(*this);
 }
-int32_t CNetEpoll::runDealSockBase(SNetThreadRes & sNetThreadRes) {
+int32_t CNetEpoll::runDealSockBase(SNetThreadRes & sNetThreadRes)
+{
 	return m_cNetEpollImp->runDealSockBase(sNetThreadRes);
 }
-int32_t CNetEpoll::runListenBase(SNetThreadRes & sNetThreadRes) {
+int32_t CNetEpoll::runListenBase(SNetThreadRes & sNetThreadRes)
+{
 	return m_cNetEpollImp->runListenBase(sNetThreadRes);
 }
-int32_t CNetEpoll::destroy() {
+int32_t CNetEpoll::destroy()
+{
 	m_cNetEpollImp->destroy();
 	return RETOK;
 }
-CNetEpoll::~CNetEpoll() {
+CNetEpoll::~CNetEpoll()
+{
 }

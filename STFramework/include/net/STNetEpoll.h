@@ -34,22 +34,27 @@ class CEpollRunThread;
 class CNetEpoll;
 typedef int32_t AI_int;
 
-enum EOPTFLAG {
+enum EOPTFLAG
+{
 	RFLAG = 1, WFLAG, EFLAG
 };
 
-enum THREADFLAG {
-	 RUNFLAG = 0, EXITFLAG = 1
+enum THREADFLAG
+{
+	RUNFLAG = 0, EXITFLAG = 1
 };
 
 typedef void* (*PFun_CB)(int32_t, void*);
 typedef struct epoll_event SEvent;
-typedef struct STEventBuff_t {
-	STEventBuff_t() {
+typedef struct STEventBuff_t
+{
+	STEventBuff_t()
+	{
 		memset(szBuff, 0x00, EVENTBUFFSIZE);
 		pStart = szBuff;
 		pEnd = szBuff;
-	};
+	}
+	;
 	char szBuff[EVENTBUFFSIZE];
 	char* pStart;
 	char* pEnd;
@@ -58,8 +63,10 @@ typedef struct STEventBuff_t {
 typedef std::map<int32_t, STNetBuff> MapEventBuff;
 typedef std::map<int32_t, PFun_CB> MapEventFun;
 
-typedef struct STNetEvent_t {
-	STNetEvent_t() {
+typedef struct STNetEvent_t
+{
+	STNetEvent_t()
+	{
 		STNetBuff sTNetBuff;
 		mapEventFun[RFLAG] = NULL;
 		mapEventFun[WFLAG] = NULL;
@@ -70,7 +77,8 @@ typedef struct STNetEvent_t {
 		rcb = NULL;
 		wcb = NULL;
 		ecb = NULL;
-	};
+	}
+	;
 	MapEventBuff mapEventBuff;
 	MapEventFun mapEventFun;
 	STNetBuff sRBuf;
@@ -84,7 +92,8 @@ typedef struct STNetEvent_t {
 typedef std::map<SNet, SEvent> SMapEvent;
 typedef std::map<SNet, STNetEvent> SMapAct;
 
-typedef struct SNetThreadRes_t {
+typedef struct SNetThreadRes_t
+{
 	pthread_t m_iThreadID;
 	int32_t m_iSocketNum;
 	int32_t m_iThreadType;
@@ -103,7 +112,8 @@ typedef struct SNetThreadRes_t {
 	SEvent m_happenEvent[MAXHAPPENEVENT];
 	struct SNetThreadRes_t * pNetThreadRes;
 	SNetThreadRes_t() :
-			m_mutex(new STMutex), m_mutexBef(new STMutex) {
+			m_mutex(new STMutex), m_mutexBef(new STMutex)
+	{
 		m_eFd = 0;
 		m_iThreadID = 0;
 		pNetThreadRes = NULL;
@@ -115,20 +125,25 @@ typedef struct SNetThreadRes_t {
 
 typedef std::map<uint32_t, SNetThreadRes> SRunEvent;
 
-class CNetEpollImp {
+class CNetEpollImp
+{
 public:
 	CNetEpollImp();
 	~CNetEpollImp();
 	int32_t init(const STString& strConfigFile);
 	int32_t run(CNetEpoll& sTNetEpoll);
 	int32_t destroy();
-	int32_t exitThread(){m_exitFlag = EXITFLAG;return m_exitFlag;}
+	int32_t exitThread()
+	{
+		m_exitFlag = EXITFLAG;
+		return m_exitFlag;
+	}
 
 public:
 	int32_t runDealSockBase(SNetThreadRes & sNetThreadRes);
 	int32_t runListenBase(SNetThreadRes & sNetThreadRes);
 public:
-	void 	setNonBlocking(int32_t iSock);
+	void setNonBlocking(int32_t iSock);
 private:
 
 	int32_t runListen(CNetEpoll&);
@@ -152,11 +167,12 @@ private:
 	int32_t m_exitFlag;
 
 	std::map<pthread_t, SNumFlag> m_mapThread2Num;
-	std::vector<CEpollListenThread>  m_vctListenThread;
-	std::vector<CEpollRunThread>  m_vctRunThread;
+	std::vector<CEpollListenThread> m_vctListenThread;
+	std::vector<CEpollRunThread> m_vctRunThread;
 };
 
-class CNetEpoll: public STNetMode {
+class CNetEpoll: public STNetMode
+{
 public:
 	CNetEpoll();
 	~ CNetEpoll();
