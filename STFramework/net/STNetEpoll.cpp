@@ -60,10 +60,10 @@ public:
 					cEpollListenThread.m_netEpoll)
 	{
 	}
-	int32_t init(SNetThreadRes* sNetThreadRes, CNetEpoll* impl)
+	int32_t init(SNetThreadRes& sNetThreadRes, CNetEpoll& impl)
 	{
-		m_netEpoll = impl;
-		m_netThreadRes = sNetThreadRes;
+		m_netEpoll = &impl;
+		m_netThreadRes = &sNetThreadRes;
 		return RETOK;
 	}
 	void main()
@@ -302,7 +302,7 @@ int32_t CNetEpollImp::runListen(CNetEpoll& cNetEpoll)
 	int32_t iRet = RETOK;
 	std::map<uint32_t, SNetThreadRes>::iterator it = m_listenEvent.begin();
 	while (it != m_listenEvent.end()) {
-		cEpollListenThread.init(&(it->second), &cNetEpoll);
+		cEpollListenThread.init(it->second, cNetEpoll);
 		m_vctListenThread.push_back(cEpollListenThread);
 		++it;
 	}
