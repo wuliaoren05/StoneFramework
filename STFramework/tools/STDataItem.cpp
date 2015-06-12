@@ -5,6 +5,7 @@
 #include <map>
 
 #include "tools/STDataItem.h"
+#include "tools/STBase64.h"
 
 
 class STDataItem::PrivateFunc
@@ -36,6 +37,9 @@ public:
                 break;
             case Type_String:
                 ret += "<string>" + item.toString() + "</string>";
+                break;
+            case Type_Binary:
+                ret += "<binaryAsBase64>" + STBase64::encode(item.toBinary()) + "</binaryAsBase64>";
                 break;
             default:
                 break;
@@ -70,6 +74,9 @@ public:
             }
             else if ("string" == valueTag) {
                 item = valueStr;
+            }
+            else if ("binaryAsBase64" == valueTag) {
+                item = STBase64::decode(valueStr);
             }
         }
         else {
@@ -197,7 +204,7 @@ public:
         }
 
         STString valueTag = getFirstTagName(str);
-        if ("bool" != valueTag && "int" != valueTag && "string" != valueTag) {
+        if ("bool" != valueTag && "int" != valueTag && "string" != valueTag && "binaryAsBase64" != valueTag) {
             return ret;
         }
         STString startTag("<" + valueTag + ">");
@@ -288,6 +295,14 @@ STDataItem::STDataItem(const STString &tagName, const STString &value)
     m_data->m_tagName = tagName;
     m_data->m_type = Type_String;
     m_data->m_value.strValue = value;
+}
+
+STDataItem::STDataItem(const STString &tagName, const STBuffer &value)
+    : m_data(new RealData())
+{
+    m_data->m_tagName = tagName;
+    m_data->m_type = Type_Binary;
+    m_data->m_value.binValue = value;
 }
 
 STDataItem::STDataItem(const RealDataPtr &realDataPtr)
@@ -381,7 +396,43 @@ STString STDataItem::toString() const
     return toString(transSuccess);
 }
 
+STBuffer STDataItem::toBinary(bool &transSuccess) const
+{
+    STBuffer ret(0);
+
+    if (type() == Type_Binary) {
+        transSuccess = true;
+        ret = m_data->binValue();
+    }
+    else {
+        transSuccess = false;
+    }
+
+    return ret;
+}
+
+STBuffer STDataItem::toBinary() const
+{
+    bool transSuccess = false;
+    return toBinary(transSuccess);
+}
+
 void STDataItem::operator =(bool value)
+{
+    if (!m_data->m_childs.empty() ) {
+        m_data->m_childs.clear();
+    }
+
+    if (m_data.get() == NULL) {
+        m_data = new RealData();
+        m_data->changeValue(value);
+    }
+    else {
+        m_data->changeValue(value);
+    }
+}
+
+void STDataItem::operator =(const STBuffer &value)
 {
     if (!m_data->m_childs.empty() ) {
         m_data->m_childs.clear();
@@ -572,6 +623,12 @@ void STDataItem::RealData::changeValue(const STString &value)
     m_value.strValue = value;
 }
 
+void STDataItem::RealData::changeValue(const STBuffer &value)
+{
+    m_type = Type_Binary;
+    m_value.binValue = value;
+}
+
 bool STDataItem::RealData::boolValue()
 {
     return m_value.boolValue;
@@ -586,6 +643,12 @@ STString STDataItem::RealData::strValue()
 {
     return m_value.strValue;
 }
+
+STBuffer STDataItem::RealData::binValue()
+{
+    return m_value.binValue;
+}
+
 //for class STDataItem::RealData end
 
 

@@ -2,4 +2,6 @@ TEMPLATE = subdirs
 
 SUBDIRS += \
     server \
-    client
+    client \
+    serverExt \
+    clientExt

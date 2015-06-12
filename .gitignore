@@ -2,4 +2,5 @@
 *.a
 *.user*
 test/Makefile*
+*~
 

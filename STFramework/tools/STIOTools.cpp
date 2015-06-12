@@ -23,8 +23,15 @@ STString STConsoleTool::readOneLine()
 
 void STConsoleTool::write(const STString& str)
 {
+    std::cout<<str;
+    std::cout.flush();
+}
+
+void STConsoleTool::writeLine(const STString &str)
+{
     std::cout<<str<<std::endl;
 }
+
 
 
 

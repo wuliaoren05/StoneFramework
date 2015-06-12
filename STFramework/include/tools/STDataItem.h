@@ -6,6 +6,7 @@
 
 #include "base/STCommonDefine.h"
 #include "base/STPtr.h"
+#include "base/STBuffer.h"
 
 
 class STDataItem;
@@ -21,6 +22,7 @@ public:
         Type_Bool,
         Type_Int,
         Type_String,
+        Type_Binary,
 
         Type_Count
     };
@@ -31,6 +33,7 @@ public:
     STDataItem(const STString &tagName, int value);
     STDataItem(const STString &tagName, const char* value);
     STDataItem(const STString &tagName, const STString &value);
+    STDataItem(const STString &tagName, const STBuffer &value);
 
     bool isValid() const;
     Type type() const;
@@ -45,10 +48,14 @@ public:
     STString toString(bool &transSuccess) const;
     STString toString() const;
 
+    STBuffer toBinary(bool &transSuccess) const;
+    STBuffer toBinary() const;
+
 
     void operator =(bool value);
     void operator =(int value);
     void operator =(const std::string &value);
+    void operator =(const STBuffer &value);
 
     //const NGConfigItem(const NGConfigItem &other);//not need, default is enough
 
@@ -84,9 +91,11 @@ public:
     void changeValue(bool value);
     void changeValue(int value);
     void changeValue(const STString &value);
+    void changeValue(const STBuffer &value);
     bool boolValue();
     int intValue();
     STString strValue();
+    STBuffer binValue();
 
 private:
     friend class STDataItem;
@@ -96,6 +105,7 @@ private:
         bool boolValue;
         int intValue;
         STString strValue;
+        STBuffer binValue;
     }                                       m_value;
 
     STString                                m_tagName;

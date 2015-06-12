@@ -204,21 +204,32 @@ void testListErase()
         <child2><bool>true</bool></child2>
     </parent1>
     <child3><string>this is child3</string></child3>
+    <child4><binaryAsBase64>..........</binaryAsBase64></child4>
 </root>
 
 */
-
+#include <base/STBuffer.h>
 void testDataItem()
 {
-    STString xmlPath1("/home/wangl/myCode/STFramework/output/dataItem");
-    STString xmlPath2("/home/wangl/myCode/STFramework/output/dataItem2");
+    STString folderPath("/home/stone/myCode/build-StoneFramework-Desktop_Qt_5_4_0_GCC_32bit-Debug/test/");
+    STString xmlPath1 = folderPath + "dataItem1";
+    STString xmlPath2 = folderPath + "dataItem2";
+
     STDataItem root("root");
+
     STDataItem parent1("parent1");
     parent1.addChild(STDataItem("child1", 12));
-    parent1.addChild(STDataItem("child22", true));
+    parent1.addChild(STDataItem("child2", true));
 
     root.addChild(parent1);
     root.addChild(STDataItem("child3", "this is child3"));
+
+    STBuffer buf(100);
+    char* ptr = const_cast<char*>(buf.ptr());
+    for(int i=0; i<buf.size(); ++i) {
+        ptr[i] = i;
+    }
+    root.addChild(STDataItem("child4", buf));
 
     root.saveToFile(xmlPath1);
 
@@ -491,8 +502,36 @@ void testIOTools()
     while (1) {
         STString str = STConsoleTool::readOneLine();
 
-        STConsoleTool::write("your input:" + str);
+        STConsoleTool::writeLine("your input:" + str);
     }
+}
+
+#include "tools/STRandom.h"
+void testRandomTools()
+{
+    for (int i=1; i<=100; ++i) {
+        STConsoleTool::writeLine(STRandom::randomLetterString(i));
+    }
+    STConsoleTool::writeLine("");
+    for (int i=0; i<100; ++i) {
+        STConsoleTool::write( STStringTool::intToStr(STRandom::randomInt(0, 100)) );
+        STConsoleTool::write(", ");
+    }
+}
+
+
+#include "tools/STBase64.h"
+void testBase64()
+{
+    STBuffer buf(10);
+    char* ptr = const_cast<char*>(buf.ptr());
+    for(int i=0; i<buf.size(); ++i) {
+        ptr[i] = i;
+    }
+
+    STString base64Str1 = STBase64::encode(buf);
+    STString base64Str2 = STBase64::encode(STBase64::decode(base64Str1)) ;
+    STDAssert( base64Str1 == base64Str2);
 }
 
 int main(int argc, char *argv[])
@@ -506,12 +545,14 @@ int main(int argc, char *argv[])
     //testGuard();
     //testListErase();
     //testCoreApplication(argc, argv);
-    //testDataItem();
+    testDataItem();
     //testSTNetIdentify();
     //testSocketFdReader(argc, argv);
     //testNet(argc, argv);
     //testStringTool();
-    testIOTools();
+    //testIOTools();
+    //testRandomTools();
+    //testBase64();
 
     return 0;
 }

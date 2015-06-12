@@ -8,6 +8,7 @@ class STConsoleTool
 public:
     static STString readOneLine();
     static void write(const STString& str);
+    static void writeLine(const STString& str);
 };
 
 class STSerialTool
