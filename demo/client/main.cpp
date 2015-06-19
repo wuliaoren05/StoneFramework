@@ -5,6 +5,8 @@
 #include "net/STClient.h"
 #include "net/STNetEvent.h"
 #include "tools/STStringTool.h"
+#include "log/STLog.h"
+#include "tools/STRandom.h"
 
 
 
@@ -18,13 +20,13 @@ public:
             STNetEvent* netEvent = (STNetEvent*)e.get();
             switch (netEvent->type()) {
             case STNetEvent::Type_RemoteDisConnect:
-                std::cout<<"ClientReceiver::eventHappen(), sender:"<<netEvent->sender().ip()<<
-                        "<"<<netEvent->sender().port()<<"  server disconnected"<<" atTime:"<<time(NULL)<<std::endl;
+                LogDebug()<<"ClientReceiver::eventHappen(), sender:"<<netEvent->sender().ip()<<
+                        "<"<<netEvent->sender().port()<<"  server disconnected"<<" atTime:"<<int(time(NULL))<<STLog::endl;
                 break;
 
             case STNetEvent::Type_DataFromClient:
-                std::cout<<"ClientReceiver::eventHappen(), sender:"<<netEvent->sender().ip()<<
-                        "<"<<netEvent->sender().port()<<"  dataStr:"<<netEvent->dataStr()<<" atTime:"<<time(NULL)<<std::endl;
+                LogDebug()<<"ClientReceiver::eventHappen(), sender:"<<netEvent->sender().ip()<<
+                        "<"<<netEvent->sender().port()<<"  dataStr:"<<netEvent->dataStr()<<" atTime:"<<int(time(NULL))<<STLog::endl;
                 //STDAssert(lastSendInt == STStringTool::strToInt(netEvent->dataStr())-1);
                 lastSendInt += 2;
                 m_client->sendToServer( STStringTool::intToStr(lastSendInt) );

@@ -52,6 +52,10 @@ public:
             , DataBits dataBits = DataBits_7, StopBits stopBits = StopBits_1, Parity parity = Parity_none);
     ~STSerialTool();
 
+    STString readOneLine();
+    void writeStr(const STString& str);
+    void writeLine(const STString& str);
+
     bool openDev();
     bool isOpen();
     void closeDev();

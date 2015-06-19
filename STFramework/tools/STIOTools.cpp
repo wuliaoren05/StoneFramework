@@ -58,8 +58,34 @@ STSerialTool::~STSerialTool()
 {
 }
 
+STString STSerialTool::readOneLine()
+{
+    STString ret;
+    //read(m_fd, )
+    return ret;
+}
+
+void STSerialTool::writeStr(const STString &str)
+{
+    write(m_fd, str.data(), str.size());
+}
+
+void STSerialTool::writeLine(const STString &str)
+{
+    if ( isOpen() ) {
+        writeStr(str);
+        if (str.at(str.size()-1) != '\n') {
+            writeStr("\r\n");
+        }
+    }
+}
+
 bool STSerialTool::openDev()
 {
+    if ( isOpen() ) {
+        return true;
+    }
+
     m_fd = open(m_devStr.c_str(), O_RDWR);
 
     if ( 0 >= m_fd) {
@@ -67,10 +93,14 @@ bool STSerialTool::openDev()
     }
 
     if ( !setSpeed(m_baudRate) ) {
+        close(m_fd);
+        m_fd = -1;
         return false;
     }
 
     if ( !setParity(m_dataBits, m_stopBits, m_parity) )  {
+        close(m_fd);
+        m_fd = -1;
         return false;
     }
 

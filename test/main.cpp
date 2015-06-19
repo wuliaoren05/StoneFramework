@@ -534,6 +534,13 @@ void testBase64()
     STDAssert( base64Str1 == base64Str2);
 }
 
+#include "log/STLog.h"
+void testLog()
+{
+    LogDebug()<<"hello, this is log!"<<STLog::endl;
+    LogDebug()<<"hello, this is log!"<<123<<12.3123<<STLog::endl;
+}
+
 int main(int argc, char *argv[])
 {
     STUNUSED(argc);
@@ -545,7 +552,7 @@ int main(int argc, char *argv[])
     //testGuard();
     //testListErase();
     //testCoreApplication(argc, argv);
-    testDataItem();
+    //testDataItem();
     //testSTNetIdentify();
     //testSocketFdReader(argc, argv);
     //testNet(argc, argv);
@@ -553,6 +560,7 @@ int main(int argc, char *argv[])
     //testIOTools();
     //testRandomTools();
     //testBase64();
+    testLog();
 
     return 0;
 }
